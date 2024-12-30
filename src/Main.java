@@ -13,11 +13,6 @@ public class Main {
         //    （Graph、Node、Edge 等类将在其他文件中定义）
             Graph graph = new Graph();
 
-        // 2. 启动控制台接口，用于处理用户命令行输入。
-        //   （ConsoleInterface 在后续文件中定义）
-            ConsoleInterface consoleInterface = new ConsoleInterface(graph);
-            consoleInterface.start();
-
         // 3. 启动图形界面，可视化图并与用户互动。
         //    （GraphVisualizer、UIController 等在后续文件中定义）
             GraphVisualizer visualizer = new GraphVisualizer(graph);
