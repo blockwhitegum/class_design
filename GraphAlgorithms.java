@@ -246,4 +246,231 @@ public class GraphAlgorithms {
             }
         }
     }
+    public static class ShortestPathResult {
+        private List<String> path;   // 节点ID顺序
+        private double distance;     // 最终距离/权重和
+
+        public ShortestPathResult(List<String> path, double distance) {
+            this.path = path;
+            this.distance = distance;
+        }
+
+        public List<String> getPath() {
+            return path;
+        }
+
+        public double getDistance() {
+            return distance;
+        }
+
+        @Override
+        public String toString() {
+            return "路径=" + path + "，总距离=" + distance;
+        }
+    }
+    /**
+     * 使用 BFS 求 startNodeId 到 endNodeId 的最短路径（无权图）
+     */
+    public static ShortestPathResult findShortestPathBFS(Graph graph, String startNodeId, String endNodeId) {
+        // 若两个节点相同，直接返回
+        if (startNodeId.equals(endNodeId)) {
+            return new ShortestPathResult(Collections.singletonList(startNodeId), 0.0);
+        }
+
+        // 先构建邻接表
+        Map<String, List<AdjNode>> adjacencyList = buildAdjacencyList(graph);
+        // 用来记录路径
+        Map<String, String> parent = new HashMap<>();
+        // 用来标记已访问
+        Set<String> visited = new HashSet<>();
+        Queue<String> queue = new LinkedList<>();
+
+        visited.add(startNodeId);
+        queue.offer(startNodeId);
+        parent.put(startNodeId, null); // 起点没有父节点
+
+        boolean found = false;
+        while (!queue.isEmpty()) {
+            String current = queue.poll();
+            if (current.equals(endNodeId)) {
+                found = true;
+                break;
+            }
+            List<AdjNode> neighbors = adjacencyList.get(current);
+            if (neighbors != null) {
+                for (AdjNode adj : neighbors) {
+                    String neighId = adj.getNodeId();
+                    if (!visited.contains(neighId)) {
+                        visited.add(neighId);
+                        parent.put(neighId, current);
+                        queue.offer(neighId);
+                    }
+                }
+            }
+        }
+
+        if (!found) {
+            // 无法到达
+            return null;
+        }
+
+        // 反向回溯，得到路径
+        List<String> path = new ArrayList<>();
+        String node = endNodeId;
+        while (node != null) {
+            path.add(node);
+            node = parent.get(node);
+        }
+        Collections.reverse(path);
+
+        // 无权图的“最短路径”距离，即边数
+        double distance = path.size() - 1;
+        return new ShortestPathResult(path, distance);
+    }
+    /**
+     * 使用 Dijkstra 求 startNodeId 到 endNodeId 的最短路径
+     */
+    public static ShortestPathResult findShortestPathDijkstra(Graph graph, String startNodeId, String endNodeId) {
+        // 构建邻接表
+        Map<String, List<AdjNode>> adjacencyList = buildAdjacencyList(graph);
+
+        // 距离表 & 前驱记录
+        Map<String, Double> dist = new HashMap<>();
+        Map<String, String> parent = new HashMap<>();
+
+        // 初始化 dist
+        for (Node node : graph.getNodes()) {
+            dist.put(node.getId(), Double.POSITIVE_INFINITY);
+            parent.put(node.getId(), null);
+        }
+        dist.put(startNodeId, 0.0);
+
+        // 优先队列：以当前最小距离为优先级
+        PriorityQueue<String> pq = new PriorityQueue<>((a,b) -> dist.get(a).compareTo(dist.get(b)));
+        pq.offer(startNodeId);
+
+        while (!pq.isEmpty()) {
+            String current = pq.poll();
+            if (current.equals(endNodeId)) {
+                break;
+            }
+            List<AdjNode> neighbors = adjacencyList.get(current);
+            if (neighbors != null) {
+                for (AdjNode adj : neighbors) {
+                    String neighId = adj.getNodeId();
+                    double newDist = dist.get(current) + adj.getWeight();
+                    if (newDist < dist.get(neighId)) {
+                        dist.put(neighId, newDist);
+                        parent.put(neighId, current);
+                        // 更新优先队列
+                        pq.remove(neighId);
+                        pq.offer(neighId);
+                    }
+                }
+            }
+        }
+
+        double finalDist = dist.get(endNodeId);
+        if (finalDist == Double.POSITIVE_INFINITY) {
+            // 不可达
+            return null;
+        }
+
+        // 回溯路径
+        List<String> path = new ArrayList<>();
+        String node = endNodeId;
+        while (node != null) {
+            path.add(node);
+            node = parent.get(node);
+        }
+        Collections.reverse(path);
+
+        return new ShortestPathResult(path, finalDist);
+    }
+    public static class FloydResult {
+        // 距离矩阵
+        public double[][] dist;
+        // 用于回溯路径的中间节点
+        public int[][] next;
+        // 节点列表
+        public List<Node> nodeOrder;
+    }
+
+    /**
+     * 预处理 Floyd-Warshall，生成所有节点对之间的最短路径信息
+     */
+    public static FloydResult floydWarshall(Graph graph) {
+        // 获取节点列表及邻接矩阵
+        AdjacencyMatrix adjacency = buildAdjacencyMatrix(graph);
+        List<Node> nodeList = adjacency.getNodeOrder();
+        List<List<Double>> mat = adjacency.getMatrix();
+        int n = nodeList.size();
+
+        double[][] dist = new double[n][n];
+        int[][] next = new int[n][n];
+
+        // 初始化 dist 与 next
+        for (int i = 0; i < n; i++) {
+            for (int j = 0; j < n; j++) {
+                dist[i][j] = mat.get(i).get(j);
+                if (i != j && dist[i][j] != Double.POSITIVE_INFINITY) {
+                    next[i][j] = j;
+                } else {
+                    next[i][j] = -1;
+                }
+            }
+        }
+
+        // 核心三重循环
+        for (int k = 0; k < n; k++) {
+            for (int i = 0; i < n; i++) {
+                for (int j = 0; j < n; j++) {
+                    if (dist[i][k] + dist[k][j] < dist[i][j]) {
+                        dist[i][j] = dist[i][k] + dist[k][j];
+                        next[i][j] = next[i][k];
+                    }
+                }
+            }
+        }
+
+        // 封装结果
+        FloydResult fr = new FloydResult();
+        fr.dist = dist;
+        fr.next = next;
+        fr.nodeOrder = nodeList;
+        return fr;
+    }
+    /**
+     * 从 FloydResult 中重构 startId->endId 的最短路径
+     */
+    public static ShortestPathResult rebuildFloydPath(FloydResult fr, String startId, String endId) {
+        List<Node> nodeOrder = fr.nodeOrder;
+        int startIndex = -1, endIndex = -1;
+        for (int i = 0; i < nodeOrder.size(); i++) {
+            if (nodeOrder.get(i).getId().equals(startId)) {
+                startIndex = i;
+            }
+            if (nodeOrder.get(i).getId().equals(endId)) {
+                endIndex = i;
+            }
+        }
+        if (startIndex == -1 || endIndex == -1) return null;
+        if (fr.dist[startIndex][endIndex] == Double.POSITIVE_INFINITY) {
+            return null; // 不可达
+        }
+
+        // 回溯路径
+        List<String> path = new ArrayList<>();
+        int current = startIndex;
+        while (current != endIndex) {
+            path.add(nodeOrder.get(current).getId());
+            current = fr.next[current][endIndex];
+            if (current < 0) return null;
+        }
+        // 加上终点
+        path.add(nodeOrder.get(endIndex).getId());
+
+        double distance = fr.dist[startIndex][endIndex];
+        return new ShortestPathResult(path, distance);
+    }
 }

@@ -151,15 +151,5 @@ public class Graph {
      * 打印调试信息：显示所有结点和边
      * 便于在控制台查看当前图结构
      */
-    public void printGraphInfo() {
-        System.out.println("当前图的结点列表：");
-        for (Node n : nodes) {
-            System.out.println(" - " + n.getId());
-        }
 
-        System.out.println("当前图的边列表：");
-        for (Edge e : edges) {
-            System.out.println(" - " + e);
-        }
-    }
 }
